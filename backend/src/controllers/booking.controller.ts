@@ -34,6 +34,7 @@ const createBooking = async (req: Request, res: Response) => {
       "INSERT INTO bookings (customer_id, room_id, check_in, check_out,amount_paid) VALUES (?,?,?,?,?)",
       [customerId, roomId, checkIn, checkOut, amount_paid]
     );
+    await pool.query("UPDATE rooms SET status = booked WHERE id = ?", [roomId]);
     res.status(201).json({ message: "Booking created successfully" });
   } catch (error) {
     console.error("Error creating booking:", error);
