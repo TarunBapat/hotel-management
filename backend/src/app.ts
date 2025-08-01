@@ -2,6 +2,7 @@ import express from "express";
 import { pool } from "./config/db.config";
 import customerRouter from "./routes/customer.routes";
 import bookingRouter from "./routes/booking.routes";
+import roomRouter from "./routes/room.routes";
 const cors = require("cors");
 
 const app = express();
@@ -30,6 +31,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/v1/customers", customerRouter);
 app.use("/api/v1/bookings", bookingRouter);
+app.use("/api/v1/rooms", roomRouter);
 
 app.listen(5001, () => {
   console.log("Server running on http://localhost:5000/");

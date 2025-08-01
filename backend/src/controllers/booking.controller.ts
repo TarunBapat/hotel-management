@@ -3,38 +3,75 @@ import { Request, Response } from "express";
 
 const createBooking = async (req: Request, res: Response) => {
   const { customer, booking } = req.body;
+  console.log("Received booking data:", { customer, booking });
 
-  const { name, email, phone, address, id_proof_type, id_proof_number } =
-    customer;
-  const { checkIn, checkOut, amount_paid, room } = booking;
+  const {
+    firstname,
+    lastname,
+    email,
+    phone,
+    address,
+    id_proof_type,
+    id_proof_number,
+  } = customer;
+  const {
+    checkIn,
+    checkOut,
+    totalAmount: amount_paid,
+    roomType,
+    guests,
+    specialRequests,
+    status,
+  } = booking;
 
   const [roomDetails]: any = await pool.query(
     "SELECT id FROM rooms WHERE number = ?",
-    [room]
+    [roomType]
   );
 
   const roomId = roomDetails[0]?.id;
 
   const [checkExistingUser]: any = await pool.query(
-    "SELECT id FROM customers WHERE email = ? OR name = ?",
-    [email, name]
+    "SELECT id FROM customers WHERE email = ? OR firstname = ?",
+    [email, firstname]
   );
   let customerId;
   if (checkExistingUser.length > 0) {
     customerId = checkExistingUser[0]?.id;
   } else {
     const [result] = await pool.query(
-      "INSERT INTO customers (name, email, phone, address,id_proof_type,id_proof_number) VALUES (?, ?, ?, ?,?,?)",
-      [name, email, phone, address, id_proof_type, id_proof_number]
+      "INSERT INTO customers (firstname, lastname, email, phone, address,id_proof_type,id_proof_number) VALUES (?,?, ?, ?, ?,?,?)",
+      [
+        firstname,
+        lastname,
+        email,
+        phone,
+        address,
+        id_proof_type,
+        id_proof_number,
+      ]
     );
     customerId = result.insertId;
   }
   try {
     await pool.query(
-      "INSERT INTO bookings (customer_id, room_id, check_in, check_out,amount_paid) VALUES (?,?,?,?,?)",
-      [customerId, roomId, checkIn, checkOut, amount_paid]
+      "INSERT INTO bookings (customer_id, room_id, check_in, check_out,amount_paid,guests,specialRequests,status) VALUES (?,?,?,?,?,?,?,?)",
+      [
+        customerId,
+        roomId,
+        checkIn,
+        checkOut,
+        amount_paid,
+        guests,
+        specialRequests,
+        status,
+      ]
     );
-    await pool.query("UPDATE rooms SET status = booked WHERE id = ?", [roomId]);
+    await pool.query("UPDATE rooms SET status = ? WHERE id = ?", [
+      "Occupied",
+      roomId,
+    ]);
+
     res.status(201).json({ message: "Booking created successfully" });
   } catch (error) {
     console.error("Error creating booking:", error);

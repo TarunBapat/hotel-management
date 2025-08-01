@@ -50,7 +50,7 @@ const searchCustomer = async (req: Request, res: Response) => {
 
   try {
     const [result] = await pool.query(
-      "SELECT * FROM customers as C WHERE C.name LIKE ? OR C.phone LIKE ? LIMIT 10",
+      "SELECT * FROM customers as C WHERE C.firstname LIKE ? OR C.phone LIKE ? LIMIT 10",
       [`%${term}%`, `%${term}%`]
     );
     res.status(200).json({ data: result });
