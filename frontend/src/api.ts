@@ -1,7 +1,8 @@
 import axios from "axios";
 
 interface CustomerData {
-  name: string;
+  firstname: string;
+  lastname: string;
   email: string;
   phone: string;
   address?: string;
@@ -15,7 +16,9 @@ interface BookingData {
   roomType: string;
   guests: number;
   specialRequests?: string;
-  amount_paid: number;
+  totalAmount: number;
+  nights?: number;
+  status: string;
 }
 
 const apiClient = function () {
@@ -35,6 +38,9 @@ const apiClient = function () {
     },
     searchCustomers: async (term: string) => {
       return api.get(`/customers/search?term=${term}`);
+    },
+    getAllRooms: async () => {
+      return api.get("/rooms/all");
     },
   };
 };

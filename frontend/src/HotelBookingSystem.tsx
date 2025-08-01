@@ -15,12 +15,33 @@ import {
 } from "lucide-react";
 import api from "./api";
 
+interface Customer {
+  id: number;
+  firstname: string;
+  lastname: string;
+  email: string;
+  phone: string;
+  address?: string;
+}
+type FormData = {
+  customerId: number | null;
+  firstname: string;
+  lastname: string;
+  email: string;
+  phone: string;
+  address?: string;
+  checkIn: string;
+  checkOut: string;
+  roomType: string;
+  guests: number;
+  specialRequests?: string;
+};
 const HotelBookingSystem = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     // Customer fields
     customerId: null,
-    firstName: "",
-    lastName: "",
+    firstname: "",
+    lastname: "",
     email: "",
     phone: "",
     address: "",
@@ -38,68 +59,18 @@ const HotelBookingSystem = () => {
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [showCustomerFields, setShowCustomerFields] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [AvailableRooms, setAvailableRooms] = useState([]);
 
-  const fetchCustomers = async () => {
-    const customers = await api.getAllCustomers();
-    console.log("Fetched Customers:", customers.data);
+  const fetchRooms = async () => {
+    const customers = await api.getAllRooms();
+    const available_rooms = customers.data.data.filter(
+      (room: any) => room?.status?.toLowerCase() === "available"
+    );
+    setAvailableRooms(available_rooms);
   };
   useEffect(() => {
-    fetchCustomers();
+    fetchRooms();
   }, []);
-  // Mock customer data - replace with actual database queries
-  const mockCustomers = [
-    {
-      id: 1,
-      firstName: "John",
-      lastName: "Doe",
-      email: "john.doe@email.com",
-      phone: "+1-555-0123",
-      address: "123 Main St, City",
-    },
-    {
-      id: 2,
-      firstName: "Jane",
-      lastName: "Smith",
-      email: "jane.smith@email.com",
-      phone: "+1-555-0124",
-      address: "456 Oak Ave, Town",
-    },
-    {
-      id: 3,
-      firstName: "Mike",
-      lastName: "Johnson",
-      email: "mike.j@email.com",
-      phone: "+1-555-0125",
-      address: "789 Pine Rd, Village",
-    },
-  ];
-
-  const roomTypes = [
-    {
-      value: "standard",
-      label: "Standard Room",
-      price: 120,
-      description: "Comfortable room with essential amenities",
-    },
-    {
-      value: "deluxe",
-      label: "Deluxe Room",
-      price: 180,
-      description: "Spacious room with premium features",
-    },
-    {
-      value: "suite",
-      label: "Executive Suite",
-      price: 300,
-      description: "Luxury suite with separate living area",
-    },
-    {
-      value: "presidential",
-      label: "Presidential Suite",
-      price: 500,
-      description: "Ultimate luxury with panoramic views",
-    },
-  ];
 
   // Search customers function
   const searchInputString = async (term: string) => {
@@ -110,15 +81,17 @@ const HotelBookingSystem = () => {
     const customersData = await api.searchCustomers(term);
     const results = customersData?.data?.data?.filter(
       (customer: any) =>
-        customer.name.toLowerCase().includes(term.toLowerCase()) ||
+        customer.firstname.toLowerCase().includes(term.toLowerCase()) ||
+        customer.lastname.toLowerCase().includes(term.toLowerCase()) ||
         customer.email.toLowerCase().includes(term.toLowerCase()) ||
         customer.phone.includes(term)
     );
+
     setSearchResults(results);
   };
 
   // Handle customer search
-  const handleSearchChange = (e) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value;
     setSearchTerm(term);
     searchInputString(term);
@@ -127,8 +100,8 @@ const HotelBookingSystem = () => {
       setFormData((prev) => ({
         ...prev,
         customerId: null,
-        firstName: "",
-        lastName: "",
+        firstname: "",
+        lastname: "",
         email: "",
         phone: "",
         address: "",
@@ -139,17 +112,17 @@ const HotelBookingSystem = () => {
   };
 
   // Select existing customer
-  const selectCustomer = (customer) => {
+  const selectCustomer = (customer: Customer) => {
     setFormData((prev) => ({
       ...prev,
       customerId: customer.id,
-      firstName: customer.firstName,
-      lastName: customer.lastName,
+      firstname: customer.firstname,
+      lastname: customer.lastname,
       email: customer.email,
       phone: customer.phone,
-      address: customer.address,
+      address: customer.address ?? "",
     }));
-    setSearchTerm(`${customer.firstName} ${customer.lastName}`);
+    setSearchTerm(`${customer.firstname} ${customer.lastname}`);
     setSearchResults([]);
     setShowCustomerFields(true);
     setIsNewCustomer(false);
@@ -163,8 +136,8 @@ const HotelBookingSystem = () => {
     setFormData((prev) => ({
       ...prev,
       customerId: null,
-      firstName: "",
-      lastName: "",
+      firstname: "",
+      lastname: "",
       email: "",
       phone: "",
       address: "",
@@ -172,7 +145,7 @@ const HotelBookingSystem = () => {
   };
 
   // Handle form input changes
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -187,10 +160,12 @@ const HotelBookingSystem = () => {
       const checkOut = new Date(formData.checkOut);
       const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
       const roomPrice =
-        roomTypes.find((room) => room.value === formData.roomType)?.price || 0;
+        AvailableRooms.find((room) => room.number == formData.roomType)
+          ?.price_per_night || 0;
       const subtotal = nights * roomPrice;
       const tax = subtotal * 0.12; // 12% tax
       const total = subtotal + tax;
+
       return { nights, roomPrice, subtotal, tax, total };
     }
     return { nights: 0, roomPrice: 0, subtotal: 0, tax: 0, total: 0 };
@@ -199,49 +174,43 @@ const HotelBookingSystem = () => {
   const { nights, roomPrice, subtotal, tax, total } = calculateBooking();
 
   // Handle form submission
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
       // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      console.log("Booking Data:", {
-        customer: {
-          id: formData.customerId,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          isNew: isNewCustomer,
-        },
-        booking: {
-          checkIn: formData.checkIn,
-          checkOut: formData.checkOut,
-          roomType: formData.roomType,
-          guests: formData.guests,
-          specialRequests: formData.specialRequests,
-          nights,
-          totalAmount: total,
-        },
-      });
-
-      alert(
-        `🎉 Booking ${
-          isNewCustomer
-            ? "created with new customer"
-            : "created for existing customer"
-        }!`
-      );
-    } catch (error) {
+      const customer = {
+        id: formData.customerId,
+        firstname: formData.firstname,
+        lastname: formData.lastname,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+      };
+      const booking = {
+        checkIn: formData.checkIn,
+        checkOut: formData.checkOut,
+        roomType: formData.roomType,
+        guests: formData.guests,
+        specialRequests: formData.specialRequests,
+        nights,
+        totalAmount: total,
+        status: "Booked",
+      };
+      await api.createBooking(customer, booking);
+    } catch (error: any) {
       alert("Error creating booking: " + error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
-
+  const fetchAvailableRooms = async () => {
+    const roomsData = await api.getAllRooms();
+    console.log("Available Rooms:", roomsData.data.data);
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Header */}
@@ -302,14 +271,14 @@ const HotelBookingSystem = () => {
                 {/* Search Results Dropdown */}
                 {searchResults.length > 0 && (
                   <div className="relative z-20 w-full mt-2 bg-white/95 backdrop-blur-sm border border-gray-200/50 rounded-xl shadow-2xl max-h-60 overflow-auto">
-                    {searchResults.map((customer) => (
+                    {searchResults.map((customer: Customer) => (
                       <div
                         key={customer.id}
                         onClick={() => selectCustomer(customer)}
                         className="p-4 hover:bg-blue-50/80 cursor-pointer border-b border-gray-100/50 last:border-b-0 transition-colors duration-150"
                       >
                         <div className="font-medium text-gray-900">
-                          {customer.firstName} {customer.lastName}
+                          {customer.firstname} {customer.lastname}
                         </div>
                         <div className="text-sm text-gray-500 mt-1">
                           {customer.email} • {customer.phone}
@@ -371,8 +340,8 @@ const HotelBookingSystem = () => {
                     </label>
                     <input
                       type="text"
-                      name="firstName"
-                      value={formData.firstName}
+                      name="firstname"
+                      value={formData.firstname}
                       onChange={handleInputChange}
                       required
                       disabled={!isNewCustomer}
@@ -386,8 +355,8 @@ const HotelBookingSystem = () => {
                     </label>
                     <input
                       type="text"
-                      name="lastName"
-                      value={formData.lastName}
+                      name="lastname"
+                      value={formData.lastname}
                       onChange={handleInputChange}
                       required
                       disabled={!isNewCustomer}
@@ -497,22 +466,21 @@ const HotelBookingSystem = () => {
                     name="roomType"
                     value={formData.roomType}
                     onChange={handleInputChange}
+                    onFocus={fetchAvailableRooms}
                     required
                     className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200"
                   >
                     <option value="">Select Room Type</option>
-                    {roomTypes.map((room) => (
-                      <option key={room.value} value={room.value}>
-                        {room.label} - ${room.price}/night
+                    {AvailableRooms.map((room) => (
+                      <option key={room.id} value={room.number}>
+                        {room.type} - ${room.price_per_night}/night
                       </option>
                     ))}
                   </select>
                   {formData.roomType && (
                     <p className="text-xs text-gray-500 mt-2">
-                      {
-                        roomTypes.find((r) => r.value === formData.roomType)
-                          ?.description
-                      }
+                      {AvailableRooms.find((r) => r.type === formData.roomType)
+                        ?.description || " No description available"}
                     </p>
                   )}
                 </div>
@@ -635,7 +603,7 @@ const HotelBookingSystem = () => {
                     <div className="flex items-center space-x-2 text-sm text-blue-700 bg-blue-50 p-3 rounded-lg">
                       <CheckCircle className="w-4 h-4" />
                       <span>
-                        Booking for {formData.firstName} {formData.lastName}
+                        Booking for {formData.firstname} {formData.lastname}
                       </span>
                     </div>
                   ) : null}
